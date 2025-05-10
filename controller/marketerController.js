@@ -1,0 +1,107 @@
+const Marketer = require('../models/marketer');
+const jwt       = require('jsonwebtoken');
+
+// MARKETER SIGNUP ▶ creates a pending request
+exports.register = async (req, res) => {
+  try {
+    const { name, email, phoneNumber, role, password } = req.body;
+    if (!name || !email || !phoneNumber || !role || !password) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'All fields are required'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const existing = await Marketer.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({
+        status: 'fail',
+        message: 'Email already in use'
+      });
+    }
+
+    // create as not verified
+    const newMarketer = await Marketer.create({
+      name,
+      email: normalizedEmail,
+      phoneNumber,
+      role,
+      password           // will be hashed by pre-save hook
+    });
+
+    // TODO: notify admin of new signup request (e.g., via email or dashboard event)
+    return res.status(201).json({
+      status: 'pending',
+      message: 'Signup request submitted; pending admin approval',
+      data: {
+        marketerId: newMarketer.marketerId,
+        name: newMarketer.name,
+        email: newMarketer.email,
+        phoneNumber: newMarketer.phoneNumber,
+        role: newMarketer.role
+      }
+    });
+  } catch (err) {
+    console.error('Marketer signup error:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error'
+    });
+  }
+};
+
+// MARKETER LOGIN ▶ only if verified
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Email and password are required'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const marketer = await Marketer.findOne({ email: normalizedEmail });
+    if (!marketer || !(await marketer.matchPassword(password))) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'Invalid credentials'
+      });
+    }
+
+    if (!marketer.isVerified) {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'Account not verified by admin'
+      });
+    }
+
+    const payload = {
+      _id:         marketer._id,
+      marketerId:  marketer.marketerId,
+      email:       normalizedEmail,
+      role:        marketer.role
+    };
+    const expiresIn = process.env.JWT_EXPIRES_MARKETER || '90d';
+    const token     = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Login successful',
+      data: {
+        token,
+        marketerId: marketer.marketerId,
+        email: normalizedEmail,
+        role: marketer.role
+      }
+    });
+  } catch (err) {
+    console.error('Marketer login error:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error'
+    });
+  }
+};

@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
-"scripts": {
-  "start": "node app.js",
-  "dev":   "nodemon app.js",
-  "test":  "echo \"Error: no test specified\" && exit 1"
-},
-
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ipriyanshu25/fluentcrm_backend.git"
@@ -22,7 +21,14 @@
   },
   "homepage": "https://github.com/ipriyanshu25/fluentcrm_backend#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.14.2",
+    "nanoid": "^5.1.5",
     "nodemon": "^3.1.10"
   }
 }
