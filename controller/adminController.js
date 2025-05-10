@@ -20,12 +20,14 @@ exports.login = async (req, res) => {
 };
 
 
+
 exports.listMarketerRequests = async (req, res) => {
   try {
-    // find only unverified requests
     const requests = await Marketer
       .find({ isVerified: false })
-      .sort({ createdAt: -1 });            // ← newest first
+      .sort({ createdAt: -1 })
+      .select('-password -__v')
+      .select('-_id -__v');
 
     return res.json({
       status:  'success',
@@ -41,6 +43,7 @@ exports.listMarketerRequests = async (req, res) => {
   }
 };
 
+
 exports.updateMarketerVerification = async (req, res) => {
   try {
     const { marketerId } = req.params;
@@ -48,7 +51,7 @@ exports.updateMarketerVerification = async (req, res) => {
 
     if (typeof isVerified !== 'boolean') {
       return res.status(400).json({
-        status:  'fail',
+        status:  'error',
         message: '`isVerified` must be true or false'
       });
     }
@@ -61,7 +64,7 @@ exports.updateMarketerVerification = async (req, res) => {
 
     if (!marketer) {
       return res.status(404).json({
-        status:  'fail',
+        status:  'error',
         message: 'Marketer not found'
       });
     }

@@ -7,45 +7,54 @@ exports.register = async (req, res) => {
     const { name, email, phoneNumber, role, password } = req.body;
     if (!name || !email || !phoneNumber || !role || !password) {
       return res.status(400).json({
-        status: 'fail',
+        status:  'error',
         message: 'All fields are required'
       });
     }
 
     const normalizedEmail = email.toLowerCase();
-    const existing = await Marketer.findOne({ email: normalizedEmail });
+
+    // look for existing by email OR phoneNumber
+    const existing = await Marketer.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { phoneNumber }
+      ]
+    });
+
     if (existing) {
       return res.status(409).json({
-        status: 'fail',
-        message: 'Email already in use'
+        status:  'error',
+        message: existing.email === normalizedEmail
+          ? 'Email already in use'
+          : 'Phone number already in use'
       });
     }
 
-    // create as not verified
+    // create as not verified, including password for hashing
     const newMarketer = await Marketer.create({
       name,
-      email: normalizedEmail,
+      email:       normalizedEmail,
       phoneNumber,
       role,
-      password           // will be hashed by pre-save hook
+      password     
     });
 
-    // TODO: notify admin of new signup request (e.g., via email or dashboard event)
     return res.status(201).json({
-      status: 'pending',
+      status:  'pending',
       message: 'Signup request submitted; pending admin approval',
       data: {
-        marketerId: newMarketer.marketerId,
-        name: newMarketer.name,
-        email: newMarketer.email,
-        phoneNumber: newMarketer.phoneNumber,
-        role: newMarketer.role
+        marketerId:   newMarketer.marketerId,
+        name:         newMarketer.name,
+        email:        newMarketer.email,
+        phoneNumber:  newMarketer.phoneNumber,
+        role:         newMarketer.role
       }
     });
   } catch (err) {
     console.error('Marketer signup error:', err);
     return res.status(500).json({
-      status: 'error',
+      status:  'error',
       message: 'Server error'
     });
   }
@@ -57,7 +66,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({
-        status: 'fail',
+        status: 'error',
         message: 'Email and password are required'
       });
     }
@@ -66,14 +75,14 @@ exports.login = async (req, res) => {
     const marketer = await Marketer.findOne({ email: normalizedEmail });
     if (!marketer || !(await marketer.matchPassword(password))) {
       return res.status(401).json({
-        status: 'fail',
+        status: 'error',
         message: 'Invalid credentials'
       });
     }
 
     if (!marketer.isVerified) {
       return res.status(403).json({
-        status: 'fail',
+        status: 'error',
         message: 'Account not verified by admin'
       });
     }
@@ -101,6 +110,33 @@ exports.login = async (req, res) => {
     console.error('Marketer login error:', err);
     return res.status(500).json({
       status: 'error',
+      message: 'Server error'
+    });
+  }
+};
+
+exports.listVerifiedMarketers = async (req, res) => {
+  try {
+    const marketers = await Marketer
+      .find({ isVerified: true })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status:  'success',
+      message: 'List of verified marketers',
+      data:    marketers.map(m => ({
+        marketerId:  m.marketerId,
+        name:        m.name,
+        email:       m.email,
+        phoneNumber: m.phoneNumber,
+        role:        m.role,
+        verifiedAt:  m.updatedAt
+      }))
+    });
+  } catch (err) {
+    console.error('Error listing verified marketers:', err);
+    return res.status(500).json({
+      status:  'error',
       message: 'Server error'
     });
   }
