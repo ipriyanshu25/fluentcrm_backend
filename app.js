@@ -6,6 +6,8 @@ const cors     = require('cors');
 const mongoose = require('mongoose');
 const adminRoutes    = require('./routes/adminRoutes');
 const marketerRoutes = require('./routes/marketerRoutes');
+const activityListRoutes = require('./routes/activityListRoutes');
+const mailRoutes = require('./routes/mailRoutes')
 
 
 const app  = express();
@@ -27,6 +29,8 @@ app.use(express.urlencoded({ extended: true }));
 // ─── ROUTES ──────────────────────────────────────────────────────────────────
 app.use('/admin',    adminRoutes);
 app.use('/marketer', marketerRoutes);
+app.use('/activity-lists', activityListRoutes);
+app.use('/mail',mailRoutes)
 
 // ─── DB + SERVER START ───────────────────────────────────────────────────────
 mongoose

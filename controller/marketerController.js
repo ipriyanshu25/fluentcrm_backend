@@ -117,9 +117,21 @@ exports.login = async (req, res) => {
 
 exports.listVerifiedMarketers = async (req, res) => {
   try {
+    // Pagination params
+    const page  = parseInt(req.query.page, 10)  > 0 ? parseInt(req.query.page, 10)  : 1;
+    const limit = parseInt(req.query.limit, 10) > 0 ? parseInt(req.query.limit, 10) : 10;
+    const skip  = (page - 1) * limit;
+
+    // Total count of verified marketers
+    const total = await Marketer.countDocuments({ isVerified: true });
+    const totalPages = Math.ceil(total / limit);
+
+    // Fetch paginated list
     const marketers = await Marketer
       .find({ isVerified: true })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     return res.status(200).json({
       status:  'success',
@@ -131,7 +143,13 @@ exports.listVerifiedMarketers = async (req, res) => {
         phoneNumber: m.phoneNumber,
         role:        m.role,
         verifiedAt:  m.updatedAt
-      }))
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages
+      }
     });
   } catch (err) {
     console.error('Error listing verified marketers:', err);
