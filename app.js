@@ -13,8 +13,6 @@ const mailRoutes = require('./routes/mailRoutes')
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── MIDDLEWARE ──────────────────────────────────────────────────────────────
-// CORS (allow credentials)
 app.use(cors({
   origin:      process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
   credentials: true,
