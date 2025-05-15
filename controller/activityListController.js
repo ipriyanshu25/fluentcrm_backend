@@ -259,18 +259,57 @@ exports.deleteActivityList = async (req, res) => {
 // Body JSON: { marketerId }
 exports.getActivitiesByMarketer = async (req, res) => {
   try {
-    const { marketerId } = req.body;
+    const {
+      marketerId,
+      page     = 1,
+      limit    = 10,
+      sortBy   = 'createdAt',
+      sortOrder= 'desc',
+      fields
+    } = req.body;
+
     if (!marketerId) {
       return res.status(400).json({
-        status:  'error',
+        status: 'error',
         message: '`marketerId` is required in the request body.'
       });
     }
-    const lists = await ActivityList.find({ marketerId }).sort({ createdAt: -1 });
+
+    const pageNum  = Math.max(1, parseInt(page, 10));
+    const limNum   = Math.max(1, parseInt(limit, 10));
+    const skip     = (pageNum - 1) * limNum;
+    const sortOpts = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+    // Build query
+    let query = ActivityList
+      .find({ marketerId })
+      .sort(sortOpts)
+      .skip(skip)
+      .limit(limNum);
+
+    // Field selection if requested
+    if (fields) {
+      const selectStr = fields.split(',').map(f => f.trim()).join(' ');
+      query = query.select(selectStr);
+    }
+
+    // Execute
+    const [lists, total] = await Promise.all([
+      query.exec(),
+      ActivityList.countDocuments({ marketerId })
+    ]);
+    const totalPages = Math.ceil(total / limNum);
+
     return res.json({
       status:  'success',
       message: `Fetched ${lists.length} activity list(s) for marketer ${marketerId}.`,
-      data:    lists
+      data:    lists,
+      meta: {
+        total,
+        page: pageNum,
+        limit: limNum,
+        totalPages
+      }
     });
   } catch (err) {
     console.error('Error fetching activities by marketer:', err);
@@ -282,23 +321,34 @@ exports.getActivitiesByMarketer = async (req, res) => {
 };
 
 // POST /activity-lists/get-activity
-// Body JSON: { activityId }
+// Body JSON: {
+//   activityId: String,    // required
+//   fields?: String        // e.g. "activityId,contacts,mailSent"
+// }
 exports.getActivityById = async (req, res) => {
   try {
-    const { activityId } = req.body;
+    const { activityId, fields } = req.body;
     if (!activityId) {
       return res.status(400).json({
-        status:  'error',
+        status: 'error',
         message: '`activityId` is required in the request body.'
       });
     }
-    const list = await ActivityList.findOne({ activityId });
+
+    let query = ActivityList.findOne({ activityId });
+    if (fields) {
+      const selectStr = fields.split(',').map(f => f.trim()).join(' ');
+      query = query.select(selectStr);
+    }
+
+    const list = await query.exec();
     if (!list) {
       return res.status(404).json({
-        status:  'error',
+        status: 'error',
         message: 'Activity list not found.'
       });
     }
+
     return res.json({
       status:  'success',
       message: 'Fetched activity list.',
@@ -307,7 +357,7 @@ exports.getActivityById = async (req, res) => {
   } catch (err) {
     console.error('Error fetching activity by ID:', err);
     return res.status(500).json({
-      status:  'error',
+      status: 'error',
       message: 'Server error'
     });
   }
