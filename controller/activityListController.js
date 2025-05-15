@@ -1,50 +1,65 @@
 const fs  = require('fs');
 const csv = require('csv-parser');
+// controllers/activityListController.js
 const ActivityList = require('../models/activityList');
-
+const Marketer     = require('../models/marketer');
 
 exports.createActivityList = async (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name) {
+    const { name, marketerId } = req.body;
+    if (!name || !marketerId) {
       return res.status(400).json({
-        status: 'error',
-        message: 'Name is required'
+        status:  'error',
+        message: '`name` and `marketerId` are both required.'
       });
     }
 
-    // Prevent duplicate names
-    const existing = await ActivityList.findOne({ name });
-    if (existing) {
+    // ensure the marketer exists
+    const marketer = await Marketer.findOne({ marketerId });
+    if (!marketer) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'No marketer found with that marketerId.'
+      });
+    }
+
+    // prevent duplicate list names
+    if (await ActivityList.findOne({ name })) {
       return res.status(400).json({
-        status: 'error',
+        status:  'error',
         message: 'An activity list with this name already exists.'
       });
     }
 
-    const newList = new ActivityList({ name });
+    // create, auto-populating marketerName
+    const newList = new ActivityList({
+      name,
+      marketerId,
+      marketerName: marketer.name
+    });
     await newList.save();
 
     return res.status(201).json({
-      status: 'success',
+      status:  'success',
       message: 'Activity list created successfully.',
-      data: newList
+      data:    newList
     });
   } catch (err) {
     console.error('Error creating activity list:', err);
-    // Handle duplicate-key error
-    if (err.code === 11000 && err.keyValue && err.keyValue.name) {
+    // duplicate-name fallback
+    if (err.code === 11000 && err.keyValue?.name) {
       return res.status(400).json({
-        status: 'error',
+        status:  'error',
         message: 'An activity list with this name already exists.'
       });
     }
     return res.status(500).json({
-      status: 'error',
+      status:  'error',
       message: 'Server error'
     });
   }
 };
+
 
 exports.getAllActivityLists = async (req, res) => {
   try {

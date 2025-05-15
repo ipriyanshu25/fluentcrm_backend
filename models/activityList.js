@@ -1,5 +1,7 @@
+// models/activityList.js
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+
 const contactSubSchema = new Schema({
   name: {
     type: String,
@@ -12,6 +14,7 @@ const contactSubSchema = new Schema({
     trim: true
   }
 }, { _id: false });
+
 const activityListSchema = new Schema({
   name: {
     type: String,
@@ -20,14 +23,36 @@ const activityListSchema = new Schema({
     trim: true,
   },
   activityId: {
-     type    : String,
-      unique  : true,
-      default : () => new mongoose.Types.ObjectId().toString()
+    type: String,
+    unique: true,
+    default: () => new mongoose.Types.ObjectId().toString()
+  },
+  // ← NEW: who created this list
+  marketerId: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  marketerName: {
+    type: String,
+    required: true,
+    trim: true
   },
   contacts: {
     type: [contactSubSchema],
     default: []
+  },
+  // ← NEW: 0 = mail not sent yet, 1 = mail sent successfully
+  mailSent: {
+    type: Number,
+    enum: [0,1],
+    default: 0
   }
 }, { timestamps: true });
+
+// single unique index on name
 activityListSchema.index({ name: 1 }, { unique: true });
+
 module.exports = mongoose.model('ActivityList', activityListSchema);
+
+

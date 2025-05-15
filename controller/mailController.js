@@ -32,11 +32,11 @@ transporter.verify((err, success) => {
 
 exports.sendMailToList = async (req, res) => {
   try {
-    const { activityId,subject, description } = req.body;
-    if (!activityId ||!subject || !description) {
+    const { activityId, subject, description } = req.body;
+    if (!activityId || !subject || !description) {
       return res
         .status(400)
-        .json({ status: 'error', message: 'activityId, from, subject and description are required.' });
+        .json({ status: 'error', message: 'activityId, subject and description are required.' });
     }
 
     // Fetch list & emails
@@ -60,6 +60,12 @@ exports.sendMailToList = async (req, res) => {
     const mailDesc = new MailDescription({ activityId, description });
     await mailDesc.save();
 
+    // ← NEW: mark mail as sent on the activity list
+    await ActivityList.updateOne(
+      { activityId },
+      { $set: { mailSent: 1 } }
+    );
+
     return res.json({
       status:  'success',
       message: `Sent to ${emails.length} contacts.`,
@@ -70,6 +76,7 @@ exports.sendMailToList = async (req, res) => {
     return res.status(500).json({ status:'error', message:'Server error.' });
   }
 };
+
 
 
 exports.getMailDescription = async (req, res) => {
