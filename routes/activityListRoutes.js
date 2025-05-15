@@ -5,7 +5,11 @@ const {
   createActivityList, 
   getAllActivityLists, 
   uploadContacts,
-  getContacts
+  getContacts,
+  updateActivityList,    
+  deleteActivityList,
+  getActivitiesByMarketer,
+  getActivityById
 } = require('../controller/activityListController');  // note “controllers” folder
 const router = express.Router();
 
@@ -24,4 +28,9 @@ router.get('/getlist', getAllActivityLists);
 // POST /activity-lists/:activityId/upload-csv
 router.post('/upload-csv', upload.single('file'), uploadContacts);
 router.post('/get-contacts', getContacts);
+router.post('/update', updateActivityList);
+router.post('/delete', deleteActivityList);
+router.post('/getbymarketerId', getActivitiesByMarketer);
+router.post('/getbyactivityId', getActivityById);
+
 module.exports = router;

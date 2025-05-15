@@ -171,3 +171,144 @@ exports.getContacts = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
+
+// controllers/activityListController.js
+exports.updateActivityList = async (req, res) => {
+  try {
+    const { activityId, name } = req.body;
+
+    if (!activityId || !name) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`activityId` and `name` are both required in the request body.'
+      });
+    }
+
+    // Prevent duplicate names on *other* lists
+    const duplicate = await ActivityList.findOne({
+      name,
+      activityId: { $ne: activityId }
+    });
+    if (duplicate) {
+      return res.status(400).json({
+        status:  'error',
+        message: 'Another activity list with this name already exists.'
+      });
+    }
+
+    const updated = await ActivityList.findOneAndUpdate(
+      { activityId },
+      { name },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'Activity list not found.'
+      });
+    }
+
+    return res.json({
+      status:  'success',
+      message: 'Activity list name updated.',
+      data:    updated
+    });
+  } catch (err) {
+    console.error('Error updating activity list:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
+
+
+exports.deleteActivityList = async (req, res) => {
+  try {
+    const { activityId } = req.body;
+    if (!activityId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`activityId` is required in the request body.'
+      });
+    }
+
+    const deleted = await ActivityList.findOneAndDelete({ activityId });
+    if (!deleted) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'Activity list not found.'
+      });
+    }
+
+    return res.json({
+      status:  'success',
+      message: 'Activity list deleted.'
+    });
+  } catch (err) {
+    console.error('Error deleting activity list:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
+
+// POST /activity-lists/by-marketer
+// Body JSON: { marketerId }
+exports.getActivitiesByMarketer = async (req, res) => {
+  try {
+    const { marketerId } = req.body;
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`marketerId` is required in the request body.'
+      });
+    }
+    const lists = await ActivityList.find({ marketerId }).sort({ createdAt: -1 });
+    return res.json({
+      status:  'success',
+      message: `Fetched ${lists.length} activity list(s) for marketer ${marketerId}.`,
+      data:    lists
+    });
+  } catch (err) {
+    console.error('Error fetching activities by marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
+
+// POST /activity-lists/get-activity
+// Body JSON: { activityId }
+exports.getActivityById = async (req, res) => {
+  try {
+    const { activityId } = req.body;
+    if (!activityId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`activityId` is required in the request body.'
+      });
+    }
+    const list = await ActivityList.findOne({ activityId });
+    if (!list) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'Activity list not found.'
+      });
+    }
+    return res.json({
+      status:  'success',
+      message: 'Fetched activity list.',
+      data:    list
+    });
+  } catch (err) {
+    console.error('Error fetching activity by ID:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
