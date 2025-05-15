@@ -1,41 +1,96 @@
-const Admin  = require('../models/admin');
-const jwt    = require('jsonwebtoken');
+const Admin = require('../models/admin');
+const jwt = require('jsonwebtoken');
 const Marketer = require('../models/marketer');
 
+// Admin login unchanged
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password)
+  if (!email || !password) {
     return res.status(400).json({ message: 'Both fields are required' });
-
+  }
   const admin = await Admin.findOne({ email: email.toLowerCase() });
-  if (!admin || !(await admin.matchPassword(password)))
+  if (!admin || !(await admin.matchPassword(password))) {
     return res.status(401).json({ message: 'Invalid credentials' });
-
+  }
   const token = jwt.sign(
     { _id: admin._id, adminId: admin.adminId, email: admin.email },
     process.env.JWT_SECRET,
     { expiresIn: '1d' }
   );
-  res.json({ token, adminId: admin.adminId });
+  return res.json({ token, adminId: admin.adminId });
 };
 
-
-
+// List pending marketer signup requests (status = 0)
 exports.listMarketerRequests = async (req, res) => {
   try {
     const requests = await Marketer
-      .find({ isVerified: false })
+      .find({ status: 0 })
       .sort({ createdAt: -1 })
-      .select('-password -__v')
-      .select('-_id -__v');
+      .select('-password -__v -_id');
 
     return res.json({
-      status:  'success',
+      status: 'success',
       message: 'Pending marketer signup requests',
-      data:    requests
+      data: requests
     });
   } catch (err) {
     console.error('Error listing marketer requests:', err);
+    return res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+};
+
+// Approve or reject a marketer signup
+// controllers/adminController.js
+
+exports.updateMarketerVerification = async (req, res) => {
+  try {
+    const { marketerId } = req.params;
+    const { action }    = req.body;
+
+    // validate action
+    if (!['approve','reject'].includes(action)) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`action` must be either "approve" or "reject"'
+      });
+    }
+
+    // APPROVE: flip isVerified to 1
+    if (action === 'approve') {
+      const marketer = await Marketer.findOneAndUpdate(
+        { marketerId },
+        { isVerified: 1 },
+        { new: true }
+      );
+      if (!marketer) {
+        return res.status(404).json({
+          status:  'error',
+          message: 'Marketer not found'
+        });
+      }
+      return res.json({
+        status:  'success',
+        message: 'Marketer approved',
+        data:    { marketerId, isVerified: 1 }
+      });
+    }
+
+    // REJECT: remove the record entirely
+    const deleted = await Marketer.findOneAndDelete({ marketerId });
+    if (!deleted) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'Marketer not found'
+      });
+    }
+    return res.json({
+      status:  'success',
+      message: 'Marketer request rejected and removed',
+      data:    { marketerId }
+    });
+
+  } catch (err) {
+    console.error('Error updating marketer verification:', err);
     return res.status(500).json({
       status:  'error',
       message: 'Server error'
@@ -44,41 +99,37 @@ exports.listMarketerRequests = async (req, res) => {
 };
 
 
-exports.updateMarketerVerification = async (req, res) => {
+// List approved marketers (status = 1)
+exports.listVerifiedMarketers = async (req, res) => {
   try {
-    const { marketerId } = req.params;
-    const { isVerified } = req.body;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 10);
+    const skip = (page - 1) * limit;
 
-    if (typeof isVerified !== 'boolean') {
-      return res.status(400).json({
-        status:  'error',
-        message: '`isVerified` must be true or false'
-      });
-    }
+    const total = await Marketer.countDocuments({ status: 1 });
+    const totalPages = Math.ceil(total / limit);
 
-    const marketer = await Marketer.findOneAndUpdate(
-      { marketerId },
-      { isVerified },
-      { new: true }
-    );
+    const marketers = await Marketer
+      .find({ status: 1 })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    if (!marketer) {
-      return res.status(404).json({
-        status:  'error',
-        message: 'Marketer not found'
-      });
-    }
-
-    return res.json({
-      status:  'success',
-      message: `Marketer ${isVerified ? 'approved' : 'rejected'}`,
-      data:    { marketerId, isVerified }
+    return res.status(200).json({
+      status: 'success',
+      message: 'List of approved marketers',
+      data: marketers.map(m => ({
+        marketerId: m.marketerId,
+        name: m.name,
+        email: m.email,
+        phoneNumber: m.phoneNumber,
+        role: m.role,
+        verifiedAt: m.updatedAt
+      })),
+      meta: { total, page, limit, totalPages }
     });
   } catch (err) {
-    console.error('Error updating marketer verification:', err);
-    return res.status(500).json({
-      status:  'error',
-      message: 'Server error'
-    });
+    console.error('Error listing verified marketers:', err);
+    return res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };

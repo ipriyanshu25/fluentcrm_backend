@@ -1,44 +1,53 @@
-// models/Marketer.js
+// models/marketer.js
 const mongoose = require('mongoose');
 const bcrypt   = require('bcryptjs');
+const { Schema } = mongoose;
 
-const marketerSchema = new mongoose.Schema(
+const marketerSchema = new Schema(
   {
     marketerId: {
-      type    : String,
-      unique  : true,
-      default : () => new mongoose.Types.ObjectId().toString()
+      type:    String,
+      unique:  true,
+      default: () => new mongoose.Types.ObjectId().toString()
     },
     name: {
-      type     : String,
-      required : true,
-      trim     : true
+      type:     String,
+      required: true,
+      trim:     true
     },
     email: {
-      type     : String,
-      required : true,
-      unique   : true,
+      type:      String,
+      required:  true,
+      unique:    true,
       lowercase: true,
-      trim     : true
+      trim:      true
     },
     phoneNumber: {
-      type     : String,
-      required : true,
-      trim     : true
+      type:     String,
+      required: true,
+      trim:     true
     },
     role: {
-      type     : String,
-      required : true,
-      enum     : ['marketer'],  // extendable if needed
-      default  : 'marketer'
+      type:     String,
+      required: true,
+      enum:     ['marketer'],
+      default:  'marketer'
     },
     password: {
-      type     : String,
-      required : true
+      type:     String,
+      required: true
     },
+    // overall signup status: 0 = pending, 1 = approved, 2 = rejected
+    status: {
+      type:    Number,
+      enum:    [0, 1, 2],
+      default: 0
+    },
+    // mirror of approval: 1 if approved, else 0
     isVerified: {
-      type    : Boolean,
-      default : false        // pending approval
+      type:    Number,
+      enum:    [0, 1],
+      default: 0
     }
   },
   { timestamps: true }

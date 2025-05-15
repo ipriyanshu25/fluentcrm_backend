@@ -2,7 +2,8 @@ const express = require('express');
 const {
   login,
   listMarketerRequests,
-  updateMarketerVerification
+  updateMarketerVerification,
+  listVerifiedMarketers
 } = require('../controller/adminController');
 const protect = require('../middleware/auth');   // ← your middleware
 
@@ -24,5 +25,7 @@ router.post(
   protect,                                // ← again, no parentheses
   updateMarketerVerification
 );
+
+router.get('/marketers/getlist', listVerifiedMarketers);
 
 module.exports = router;

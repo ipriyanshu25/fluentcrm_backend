@@ -4,7 +4,6 @@ const router = express.Router();
 
 router.post('/signup', register);
 router.post('/login', login);
-router.get('/verified', listVerifiedMarketers);
 
 
 module.exports = router;
