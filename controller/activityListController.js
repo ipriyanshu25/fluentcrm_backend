@@ -101,74 +101,53 @@ exports.getAllActivityLists = async (req, res) => {
 
 exports.uploadContacts = async (req, res) => {
   try {
-    const { activityId, replaceExisting = false } = req.body;
-
-    if (!activityId) {
-      return res.status(400).json({ status: 'error', message: '`activityId` is required.' });
-    }
-
-    const list = await ActivityList.findById(activityId);
+    const { activityId } = req.body;
+    const list = await ActivityList.findOne({ activityId });
     if (!list) {
-      return res.status(404).json({ status: 'error', message: 'Activity list not found.' });
+      return res.status(404).json({ status: 'error', message: 'Activity list not found' });
     }
-
     if (!req.file) {
-      return res.status(400).json({ status: 'error', message: 'CSV file is required.' });
-    }
-
-    /* ---- optional wipe --------------------------------------------------- */
-    if (replaceExisting) {
-      await Contact.deleteMany({ activityId });   // empty first
+      return res.status(400).json({ status: 'error', message: 'CSV file is required' });
     }
 
     const newContacts = [];
-    let   skipped     = 0;
+    let skippedCount = 0;
 
     fs.createReadStream(req.file.path)
       .pipe(csv({ headers: ['name', 'email'], skipLines: 0 }))
       .on('data', row => {
-        const name  = row.name?.trim();
-        const email = row.email?.trim().toLowerCase();
-        if (!name && !email) { skipped++; return; }
-
-        newContacts.push({
-          activityId,
-          name,
-          email
-        });
+        const name = row.name?.trim();
+        const email = row.email?.trim();
+        if (!name && !email) {
+          skippedCount++;
+          return;
+        }
+        newContacts.push({ name, email });
       })
       .on('end', async () => {
         if (newContacts.length === 0) {
           return res.status(400).json({
-            status : 'error',
-            message: 'No valid rows found. Ensure the CSV has two columns: name,email (no header).'
+            status: 'error',
+            message: 'No valid rows found. Ensure CSV has no header and contains two columns: name,email.'
           });
         }
-
-        /* ---- bulk insert -------------------------------------------------- */
-        await Contact.insertMany(newContacts);
-
+        list.contacts = list.contacts.concat(newContacts);
+        await list.save();
         return res.status(200).json({
-          status : 'success',
-          message: `Inserted ${newContacts.length} contact(s). Skipped ${skipped} blank row(s).`
+          status: 'success',
+          message: `Stored ${newContacts.length} contacts. Skipped ${skippedCount} empty rows.`,
+          data: list
         });
       })
       .on('error', err => {
-        console.error('CSV parse error:', err);
-        return res.status(500).json({ status: 'error', message: 'Error processing CSV.' });
+        console.error('Error parsing CSV:', err);
+        return res.status(500).json({ status: 'error', message: 'Error processing CSV file' });
       });
   } catch (err) {
     console.error('Error uploading contacts:', err);
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    return res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };
-
-
-/* ------------------------------------------------------------------ *
- * 2. ADD one contact manually
- * ------------------------------------------------------------------ */
-// POST  /contacts/add
-// Body JSON: { activityId, name, email }
 exports.addContact = async (req, res) => {
   try {
     const { activityId, name = '', email = '' } = req.body;
@@ -176,74 +155,24 @@ exports.addContact = async (req, res) => {
       return res.status(400).json({ status: 'error', message: '`activityId` plus `name` or `email` required.' });
     }
 
-    const listExists = await ActivityList.exists({ _id: activityId });
-    if (!listExists) {
+    const list = await ActivityList.findOne({ activityId });
+    if (!list) {
       return res.status(404).json({ status: 'error', message: 'Activity list not found.' });
     }
 
-    const contact = await Contact.create({
-      activityId,
+    const newContact = {
       name : name.trim(),
       email: email.trim().toLowerCase()
-    });
+    };
+    list.contacts.push(newContact);
+    await list.save();
 
-    return res.json({ status: 'success', message: 'Contact added.', data: contact });
+    return res.json({ status: 'success', message: 'Contact added.', data: newContact });
   } catch (err) {
-    console.error('Error adding contact:', err);
+    console.error('addContact error:', err);
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
-
-
-/* ------------------------------------------------------------------ *
- * 3. UPDATE a contact
- * ------------------------------------------------------------------ */
-// PUT /contacts/update
-// Body JSON: { contactId, name?, email? }
-exports.updateContact = async (req, res) => {
-  try {
-    const { contactId, name, email } = req.body;
-    if (!contactId) {
-      return res.status(400).json({ status: 'error', message: '`contactId` required.' });
-    }
-    const update = {};
-    if (name  !== undefined) update.name  = name.trim();
-    if (email !== undefined) update.email = email.trim().toLowerCase();
-
-    const contact = await Contact.findByIdAndUpdate(contactId, update, { new: true });
-    if (!contact) {
-      return res.status(404).json({ status: 'error', message: 'Contact not found.' });
-    }
-    return res.json({ status: 'success', message: 'Contact updated.', data: contact });
-  } catch (err) {
-    console.error('Error updating contact:', err);
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
-  }
-};
-
-
-/* ------------------------------------------------------------------ *
- * 4. DELETE a contact
- * ------------------------------------------------------------------ */
-// DELETE /contacts/delete
-// Body JSON: { contactId }
-exports.deleteContact = async (req, res) => {
-  try {
-    const { contactId } = req.body;
-    if (!contactId) {
-      return res.status(400).json({ status: 'error', message: '`contactId` required.' });
-    }
-    const deleted = await Contact.findByIdAndDelete(contactId);
-    if (!deleted) {
-      return res.status(404).json({ status: 'error', message: 'Contact not found.' });
-    }
-    return res.json({ status: 'success', message: 'Contact deleted.' });
-  } catch (err) {
-    console.error('Error deleting contact:', err);
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
-  }
-};
-
 
 // Get contacts for a specific activity list by activityId
 exports.getContacts = async (req, res) => {
@@ -458,4 +387,33 @@ exports.getActivityById = async (req, res) => {
   }
 };
 
+// GET /activity-lists/marketer/:marketerId
+// Fetch all lists for a marketer, sorted newest→oldest
+exports.getListsByMarketer = async (req, res) => {
+  try {
+    const { marketerId } = req.params;
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`marketerId` is required in the URL parameter.'
+      });
+    }
 
+    const lists = await ActivityList
+      .find({ marketerId })
+      .sort({ createdAt: -1 })
+      .select('name activityId -_id');  // only name & activityId, remove _id
+
+    return res.json({
+      status:  'success',
+      message: `Fetched ${lists.length} activity list(s) for marketer ${marketerId}.`,
+      data:    lists
+    });
+  } catch (err) {
+    console.error('Error fetching lists by marketer (no pagination):', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};

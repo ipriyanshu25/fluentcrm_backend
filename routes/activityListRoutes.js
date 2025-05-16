@@ -11,8 +11,7 @@ const {
   getActivitiesByMarketer,
   getActivityById,
   addContact,
-  updateContact,
-  deleteContact
+  getListsByMarketer
 } = require('../controller/activityListController');
 const router = express.Router();
 
@@ -36,7 +35,6 @@ router.post('/delete', deleteActivityList);
 router.post('/getbymarketerId', getActivitiesByMarketer);
 router.post('/getbyactivityId', getActivityById);
 router.post('/add',addContact);
-router.post('/update',updateContact);
-router.post('/delete', deleteContact);
+router.get('/marketeractivitylist/:marketerId', getListsByMarketer);
 
 module.exports = router;
