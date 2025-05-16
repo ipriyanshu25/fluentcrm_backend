@@ -9,8 +9,11 @@ const {
   updateActivityList,    
   deleteActivityList,
   getActivitiesByMarketer,
-  getActivityById
-} = require('../controller/activityListController');  // note “controllers” folder
+  getActivityById,
+  addContact,
+  updateContact,
+  deleteContact
+} = require('../controller/activityListController');
 const router = express.Router();
 
 // configure multer for file uploads
@@ -32,5 +35,8 @@ router.post('/update', updateActivityList);
 router.post('/delete', deleteActivityList);
 router.post('/getbymarketerId', getActivitiesByMarketer);
 router.post('/getbyactivityId', getActivityById);
+router.post('/add',addContact);
+router.post('/update',updateContact);
+router.post('/delete', deleteContact);
 
 module.exports = router;
