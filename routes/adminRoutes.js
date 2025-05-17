@@ -26,6 +26,6 @@ router.post(
   updateMarketerVerification
 );
 
-router.get('/marketers/getlist', listVerifiedMarketers);
+router.post('/marketers/status', listVerifiedMarketers);
 
 module.exports = router;

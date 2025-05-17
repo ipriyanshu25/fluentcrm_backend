@@ -2,6 +2,7 @@
 const nodemailer = require('nodemailer');
 const ActivityList    = require('../models/activityList');
 const MailDescription = require('../models/mailDescription');
+const Campaign         = require('../models/campaign');
 
 // Build transporter with explicit options
 const transporter = nodemailer.createTransport({
@@ -65,6 +66,16 @@ exports.sendMailToList = async (req, res) => {
       { activityId },
       { $set: { mailSent: 1 } }
     );
+        await Campaign.create({
+      activityId,
+      marketerId:   list.marketerId,
+      marketerName: list.marketerName,
+      activityName: list.name,
+      contacts:     list.contacts,
+      subject,
+      description,
+      sentAt:       new Date()
+    });
 
     return res.json({
       status:  'success',
@@ -93,5 +104,24 @@ exports.getMailDescription = async (req, res) => {
   } catch(err) {
     console.error('Error fetching description:', err);
     return res.status(500).json({ status:'error', message:'Server error.' });
+  }
+};
+
+exports.getMailDescriptionList = async (req, res) => {
+  try {
+    const { activityId } = req.query;
+    if (!activityId) {
+      return res.status(400).json({ status: 'error', message: 'activityId is required.' });
+    }
+
+    const descriptions = await MailDescription.find({ activityId })
+      .sort({ createdAt: -1 }) // latest first
+      .select('descriptionId description createdAt updatedAt')
+      .lean();
+
+    return res.json({ status: 'success', data: descriptions });
+  } catch (err) {
+    console.error('Error fetching mail descriptions:', err);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };

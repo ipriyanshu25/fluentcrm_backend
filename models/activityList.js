@@ -3,6 +3,11 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const contactSubSchema = new Schema({
+  contactId: {
+    type: String,
+    required: true,
+    default: () => new mongoose.Types.ObjectId().toString()
+  },
   name: {
     type: String,
     required: true,
@@ -19,7 +24,6 @@ const activityListSchema = new Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   activityId: {
@@ -50,9 +54,4 @@ const activityListSchema = new Schema({
   }
 }, { timestamps: true });
 
-// single unique index on name
-activityListSchema.index({ name: 1 }, { unique: true });
-
 module.exports = mongoose.model('ActivityList', activityListSchema);
-
-
