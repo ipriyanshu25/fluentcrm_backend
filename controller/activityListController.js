@@ -6,6 +6,7 @@ const csv = require('csv-parser');
 const mongoose = require('mongoose');
 const path     = require('path');
 const xlsx     = require('xlsx');
+const validator    = require('validator');
 const ActivityList = require('../models/activityList');
 const Marketer = require('../models/marketer');
 const Contact = require('../models/contact');
@@ -124,29 +125,39 @@ exports.uploadContacts = async (req, res) => {
         .filter(Boolean)
     );
 
-    const newContacts = [];
-    let skippedEmpty = 0;
-    let skippedDuplicate = 0;
+    const newContacts      = [];
+    let skippedEmpty       = 0;
+    let skippedDuplicate   = 0;
+    let skippedInvalidEmail = 0;
 
     const processRow = ({ name, email }) => {
-      name  = name?.toString().trim()  || '';
-      email = email?.toString().trim() || '';
-      if (!name && !email) {
+      const nameTrim  = (name  || '').toString().trim();
+      const emailTrim = (email || '').toString().trim().toLowerCase();
+
+      // 1) skip empty rows
+      if (!nameTrim && !emailTrim) {
         skippedEmpty++;
         return;
       }
-      // skip if email already in list
-      const lowEmail = email.toLowerCase();
-      if (lowEmail && existingEmails.has(lowEmail)) {
+
+      // 2) if email present but invalid, skip
+      if (emailTrim && !validator.isEmail(emailTrim)) {
+        skippedInvalidEmail++;
+        return;
+      }
+
+      // 3) skip duplicates by email
+      if (emailTrim && existingEmails.has(emailTrim)) {
         skippedDuplicate++;
         return;
       }
-      // accept new
-      existingEmails.add(lowEmail);
+
+      // accept the row
+      if (emailTrim) existingEmails.add(emailTrim);
       newContacts.push({
         contactId: new mongoose.Types.ObjectId().toString(),
-        name,
-        email
+        name:  nameTrim,
+        email: emailTrim
       });
     };
 
@@ -159,14 +170,14 @@ exports.uploadContacts = async (req, res) => {
           if (newContacts.length === 0) {
             return res.status(400).json({
               status: 'error',
-              message: 'No new contacts found (all rows were empty or duplicates).'
+              message: 'No valid new contacts found (all rows were empty, duplicates, or invalid emails).'
             });
           }
           list.contacts = list.contacts.concat(newContacts);
           await list.save();
           return res.json({
             status: 'success',
-            message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows and ${skippedDuplicate} duplicates.`,
+            message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows, ${skippedDuplicate} duplicates, and ${skippedInvalidEmail} invalid-email rows.`,
             data: list
           });
         })
@@ -178,12 +189,10 @@ exports.uploadContacts = async (req, res) => {
 
     // ── Excel branch ───────────────────────────────────
     if (ext === '.xls' || ext === '.xlsx') {
-      // Read first sheet
       const workbook  = xlsx.readFile(req.file.path);
       const sheetName = workbook.SheetNames[0];
       const sheet     = workbook.Sheets[sheetName];
-
-      const rows = xlsx.utils.sheet_to_json(sheet, {
+      const rows      = xlsx.utils.sheet_to_json(sheet, {
         header: ['name', 'email'],
         blankrows: false,
         defval: ''
@@ -194,7 +203,7 @@ exports.uploadContacts = async (req, res) => {
       if (newContacts.length === 0) {
         return res.status(400).json({
           status: 'error',
-          message: 'No new contacts found (all rows were empty or duplicates).'
+          message: 'No valid new contacts found (all rows were empty, duplicates, or invalid emails).'
         });
       }
 
@@ -202,7 +211,7 @@ exports.uploadContacts = async (req, res) => {
       await list.save();
       return res.json({
         status: 'success',
-        message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows and ${skippedDuplicate} duplicates.`,
+        message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows, ${skippedDuplicate} duplicates, and ${skippedInvalidEmail} invalid-email rows.`,
         data: list
       });
     }
@@ -225,10 +234,19 @@ exports.addContact = async (req, res) => {
     const nameTrim  = name.trim();
     const emailTrim = email.trim().toLowerCase();
 
+    // Basic presence check
     if (!activityId || (!nameTrim && !emailTrim)) {
       return res.status(400).json({
         status: 'error',
         message: '`activityId` plus `name` or `email` required.'
+      });
+    }
+
+    // If email was provided, ensure it’s a valid address
+    if (emailTrim && !validator.isEmail(emailTrim)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid email format.'
       });
     }
 
@@ -240,13 +258,11 @@ exports.addContact = async (req, res) => {
       });
     }
 
-    // Check for duplicates
+    // Check for duplicates by email (if given) or name
     const duplicate = list.contacts.find(c => {
-      // if email provided, check email match
       if (emailTrim && c.email?.toLowerCase() === emailTrim) {
         return true;
       }
-      // if no email but name provided, check name match
       if (!emailTrim && nameTrim && c.name === nameTrim) {
         return true;
       }
@@ -260,7 +276,7 @@ exports.addContact = async (req, res) => {
       });
     }
 
-    // Create and save new contact
+    // Create and save
     const newContact = {
       contactId: new mongoose.Types.ObjectId().toString(),
       name:  nameTrim,
@@ -290,33 +306,82 @@ exports.addContact = async (req, res) => {
 exports.updateContact = async (req, res) => {
   try {
     const { contactId, name, email } = req.body;
+
+    // 1️⃣ Must provide contactId
     if (!contactId) {
-      return res.status(400).json({ status: 'error', message: '`contactId` is required.' });
+      return res.status(400).json({
+        status: 'error',
+        message: '`contactId` is required.'
+      });
     }
 
-    const update = {};
-    if (name !== undefined) update.name = name.trim();
-    if (email !== undefined) update.email = email.trim().toLowerCase();
+    // 2️⃣ Must provide at least one field to update
+    if (name === undefined && email === undefined) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Provide `name` and/or `email` to update.'
+      });
+    }
 
+    // 3️⃣ Normalize inputs
+    const update = {};
+    if (name !== undefined) {
+      const n = name.trim();
+      if (n) update.name = n;
+    }
+    if (email !== undefined) {
+      const e = email.trim().toLowerCase();
+      // Validate format
+      if (e && !validator.isEmail(e)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid email format.'
+        });
+      }
+      update.email = e;
+    }
+
+    // 4️⃣ Find the list containing this contact
     const list = await ActivityList.findOne({ 'contacts.contactId': contactId });
     if (!list) {
-      return res.status(404).json({ status: 'error', message: 'Contact not found.' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Contact not found.'
+      });
     }
 
+    // 5️⃣ Check for email-duplicate if updating email
+    if (update.email) {
+      const emailInUse = list.contacts.some(c =>
+        c.contactId !== contactId &&
+        c.email?.toLowerCase() === update.email
+      );
+      if (emailInUse) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'That email is already assigned to another contact.'
+        });
+      }
+    }
+
+    // 6️⃣ Apply updates
     const contact = list.contacts.find(c => c.contactId === contactId);
-    if (!contact) {
-      return res.status(404).json({ status: 'error', message: 'Contact not found in list.' });
-    }
-
-    if (update.name) contact.name = update.name;
+    if (update.name)  contact.name  = update.name;
     if (update.email) contact.email = update.email;
 
     await list.save();
 
-    return res.json({ status: 'success', message: 'Contact updated.', data: contact });
+    return res.json({
+      status: 'success',
+      message: 'Contact updated.',
+      data: contact
+    });
   } catch (err) {
     console.error('Error updating contact:', err);
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error.'
+    });
   }
 };
 
