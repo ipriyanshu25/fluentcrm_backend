@@ -9,6 +9,7 @@ const marketerRoutes = require('./routes/marketerRoutes');
 const activityListRoutes = require('./routes/activityListRoutes');
 const mailRoutes = require('./routes/mailRoutes')
 const templateRoutes = require('./routes/templateRoutes')
+const smtpRoues = require('./routes/smtpRoutes')
 
 
 const app  = express();
@@ -26,11 +27,13 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // ─── ROUTES ──────────────────────────────────────────────────────────────────
-app.use('/admin',    adminRoutes);
-app.use('/marketer', marketerRoutes);
-app.use('/activity', activityListRoutes);
+app.use('/admin',    adminRoutes)
+app.use('/marketer', marketerRoutes)
+app.use('/activity', activityListRoutes)
 app.use('/mail',mailRoutes)
 app.use('/template', templateRoutes)
+app.use('/smtp',smtpRoues)
+
 
 // ─── DB + SERVER START ───────────────────────────────────────────────────────
 mongoose

@@ -3,7 +3,8 @@ const {
   login,
   listMarketerRequests,
   updateMarketerVerification,
-  listVerifiedMarketers
+  listVerifiedMarketers,
+  listMarketersByApproval
 } = require('../controller/adminController');
 const protect = require('../middleware/auth');   // ← your middleware
 
@@ -21,11 +22,12 @@ router.get(
 
 // Approve/reject marketer (protected)
 router.post(
-  '/marketer-requests/:marketerId/verify',
+  '/marketer/:marketerId/verify',
   protect,                                // ← again, no parentheses
   updateMarketerVerification
 );
 
 router.post('/marketers/status', listVerifiedMarketers);
+router.get('/marketers/getlist', listVerifiedMarketers);
 
 module.exports = router;

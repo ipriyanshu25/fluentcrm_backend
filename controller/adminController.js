@@ -133,3 +133,44 @@ exports.listVerifiedMarketers = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };
+
+
+exports.listMarketersByApproval = async (req, res) => {
+  try {
+    const { isApproved } = req.body;
+
+    if (![0, 1].includes(isApproved)) {
+      return res.status(400).json({
+        status: 'error',
+        message: '`isApproved` must be 1 (approved) or 0 (rejected)'
+      });
+    }
+
+    // Mapping isApproved to status:
+    const statusValue = isApproved === 1 ? 1 : 2;
+
+    const marketers = await Marketer
+      .find({ status: statusValue })
+      .sort({ updatedAt: -1 })
+      .select('marketerId name email phoneNumber role updatedAt');
+
+    return res.status(200).json({
+      status: 'success',
+      message: isApproved === 1 ? 'Approved marketers list' : 'Rejected marketers list',
+      data: marketers.map(m => ({
+        marketerId: m.marketerId,
+        name: m.name,
+        email: m.email,
+        phoneNumber: m.phoneNumber,
+        role: m.role,
+        updatedAt: m.updatedAt
+      }))
+    });
+  } catch (err) {
+    console.error('Error listing marketers by approval status:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error'
+    });
+  }
+};

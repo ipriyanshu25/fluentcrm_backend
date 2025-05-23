@@ -80,7 +80,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    if (!marketer.isVerified) {
+    if (!marketer.status) {
       return res.status(403).json({
         status: 'error',
         message: 'Account not verified by admin'
