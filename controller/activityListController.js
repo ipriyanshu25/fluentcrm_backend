@@ -1,7 +1,11 @@
+// controllers/activityListController.js
+
+
 const fs = require('fs');
 const csv = require('csv-parser');
 const mongoose = require('mongoose');
-// controllers/activityListController.js
+const path     = require('path');
+const xlsx     = require('xlsx');
 const ActivityList = require('../models/activityList');
 const Marketer = require('../models/marketer');
 const Contact = require('../models/contact');
@@ -101,6 +105,7 @@ exports.getAllActivityLists = async (req, res) => {
   }
 };
 
+
 exports.uploadContacts = async (req, res) => {
   try {
     const { activityId } = req.body;
@@ -109,77 +114,173 @@ exports.uploadContacts = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Activity list not found' });
     }
     if (!req.file) {
-      return res.status(400).json({ status: 'error', message: 'CSV file is required' });
+      return res.status(400).json({ status: 'error', message: 'CSV or Excel file is required' });
     }
 
-    const newContacts = [];
-    let skippedCount = 0;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const existingEmails = new Set(
+      list.contacts
+        .map(c => c.email?.toLowerCase())
+        .filter(Boolean)
+    );
 
-    fs.createReadStream(req.file.path)
-      .pipe(csv({ headers: ['name', 'email'], skipLines: 0 }))
-      .on('data', row => {
-        const name = row.name?.trim();
-        const email = row.email?.trim();
-        if (!name && !email) {
-          skippedCount++;
-          return;
-        }
-        newContacts.push({contactId: new mongoose.Types.ObjectId().toString(), name, email });
-      })
-      .on('end', async () => {
-        if (newContacts.length === 0) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'No valid rows found. Ensure CSV has no header and contains two columns: name,email.'
-          });
-        }
-        list.contacts = list.contacts.concat(newContacts);
-        await list.save();
-        return res.status(200).json({
-          status: 'success',
-          message: `Stored ${newContacts.length} contacts. Skipped ${skippedCount} empty rows.`,
-          data: list
-        });
-      })
-      .on('error', err => {
-        console.error('Error parsing CSV:', err);
-        return res.status(500).json({ status: 'error', message: 'Error processing CSV file' });
+    const newContacts = [];
+    let skippedEmpty = 0;
+    let skippedDuplicate = 0;
+
+    const processRow = ({ name, email }) => {
+      name  = name?.toString().trim()  || '';
+      email = email?.toString().trim() || '';
+      if (!name && !email) {
+        skippedEmpty++;
+        return;
+      }
+      // skip if email already in list
+      const lowEmail = email.toLowerCase();
+      if (lowEmail && existingEmails.has(lowEmail)) {
+        skippedDuplicate++;
+        return;
+      }
+      // accept new
+      existingEmails.add(lowEmail);
+      newContacts.push({
+        contactId: new mongoose.Types.ObjectId().toString(),
+        name,
+        email
       });
+    };
+
+    // ── CSV branch ─────────────────────────────────────
+    if (ext === '.csv') {
+      return fs.createReadStream(req.file.path)
+        .pipe(csv({ headers: ['name', 'email'], skipLines: 0 }))
+        .on('data', processRow)
+        .on('end', async () => {
+          if (newContacts.length === 0) {
+            return res.status(400).json({
+              status: 'error',
+              message: 'No new contacts found (all rows were empty or duplicates).'
+            });
+          }
+          list.contacts = list.contacts.concat(newContacts);
+          await list.save();
+          return res.json({
+            status: 'success',
+            message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows and ${skippedDuplicate} duplicates.`,
+            data: list
+          });
+        })
+        .on('error', err => {
+          console.error('Error parsing CSV:', err);
+          return res.status(500).json({ status: 'error', message: 'Error processing CSV file' });
+        });
+    }
+
+    // ── Excel branch ───────────────────────────────────
+    if (ext === '.xls' || ext === '.xlsx') {
+      // Read first sheet
+      const workbook  = xlsx.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const sheet     = workbook.Sheets[sheetName];
+
+      const rows = xlsx.utils.sheet_to_json(sheet, {
+        header: ['name', 'email'],
+        blankrows: false,
+        defval: ''
+      });
+
+      rows.forEach(processRow);
+
+      if (newContacts.length === 0) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'No new contacts found (all rows were empty or duplicates).'
+        });
+      }
+
+      list.contacts = list.contacts.concat(newContacts);
+      await list.save();
+      return res.json({
+        status: 'success',
+        message: `Added ${newContacts.length} new contacts. Skipped ${skippedEmpty} empty rows and ${skippedDuplicate} duplicates.`,
+        data: list
+      });
+    }
+
+    // ── Unsupported ─────────────────────────────────────
+    return res.status(400).json({
+      status: 'error',
+      message: 'Unsupported file type. Please upload a CSV (.csv) or Excel (.xls/.xlsx) file.'
+    });
+
   } catch (err) {
     console.error('Error uploading contacts:', err);
     return res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };
 
-/* ------------------------------------------------------------------ *
- * 2. ADD one contact manually
- * ------------------------------------------------------------------ */
-// POST  /contacts/add
-// Body JSON: { activityId, name, email }
 exports.addContact = async (req, res) => {
   try {
     const { activityId, name = '', email = '' } = req.body;
-    if (!activityId || (!name && !email)) {
-      return res.status(400).json({ status: 'error', message: '`activityId` plus `name` or `email` required.' });
+    const nameTrim  = name.trim();
+    const emailTrim = email.trim().toLowerCase();
+
+    if (!activityId || (!nameTrim && !emailTrim)) {
+      return res.status(400).json({
+        status: 'error',
+        message: '`activityId` plus `name` or `email` required.'
+      });
     }
 
     const list = await ActivityList.findOne({ activityId });
     if (!list) {
-      return res.status(404).json({ status: 'error', message: 'Activity list not found.' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Activity list not found.'
+      });
     }
 
+    // Check for duplicates
+    const duplicate = list.contacts.find(c => {
+      // if email provided, check email match
+      if (emailTrim && c.email?.toLowerCase() === emailTrim) {
+        return true;
+      }
+      // if no email but name provided, check name match
+      if (!emailTrim && nameTrim && c.name === nameTrim) {
+        return true;
+      }
+      return false;
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Contact already present.'
+      });
+    }
+
+    // Create and save new contact
     const newContact = {
       contactId: new mongoose.Types.ObjectId().toString(),
-      name : name.trim(),
-      email: email.trim().toLowerCase()
+      name:  nameTrim,
+      email: emailTrim
     };
+
     list.contacts.push(newContact);
     await list.save();
 
-    return res.json({ status: 'success', message: 'Contact added.', data: newContact });
+    return res.json({
+      status: 'success',
+      message: 'Contact added.',
+      data: newContact
+    });
   } catch (err) {
     console.error('addContact error:', err);
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error.'
+    });
   }
 };
 
