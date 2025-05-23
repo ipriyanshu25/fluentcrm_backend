@@ -87,18 +87,15 @@ exports.deleteCredentials = async (req, res) => {
 };
 
 
-
 exports.getCredentialsList = async (req, res) => {
   try {
-    // pull pagination params from body, with sane defaults
-    let { page = 1, limit = 10 } = req.body;
+    // safely default req.body to {}
+    let { page = 1, limit = 10 } = req.body || {};
     page  = Math.max(parseInt(page,  10) || 1,  1);
     limit = Math.max(parseInt(limit, 10) || 10, 1);
-
     const skip = (page - 1) * limit;
 
-    // run both count and fetch in parallel
-    const [ total, creds ] = await Promise.all([
+    const [ total, items ] = await Promise.all([
       SmtpCredential.countDocuments(),
       SmtpCredential.find({}, '-passEnc')
         .sort({ createdAt: -1 })
@@ -107,23 +104,12 @@ exports.getCredentialsList = async (req, res) => {
         .lean()
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-
     return res.json({
       status: 'success',
-      data: {
-        total,
-        page,
-        limit,
-        totalPages,
-        items: creds
-      }
+      data: { total, page, limit, totalPages: Math.ceil(total/limit), items }
     });
   } catch (err) {
     console.error('Error fetching paginated SMTP credentials:', err);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Server error.'
-    });
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
