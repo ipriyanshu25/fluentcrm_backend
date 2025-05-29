@@ -32,11 +32,11 @@ function decrypt(encrypted) {
 }
 
 const smtpCredSchema = new mongoose.Schema({
-  user:      { type: String, required: true, unique: true },    // e.g. "devans@immplus.in"
-  host:      { type: String, required: true },                  // e.g. "smtp.immplus.in"
-  port:      { type: Number, required: true },                  // e.g. 587
-  secure:    { type: Boolean, default: false },                 // true if 465/TLS, false if 587/STARTTLS
-  passEnc:   { type: String, required: true },                  // encrypted password
+  user:      { type: String, required: true, unique: true },    
+  host:      { type: String, required: true },                  
+  port:      { type: Number, required: true },                  
+  secure:    { type: Boolean, default: false },                 
+  passEnc:   { type: String, required: true },                 
   createdAt: { type: Date, default: Date.now }
 });
 

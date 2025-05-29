@@ -30,8 +30,8 @@ const marketerSchema = new Schema(
     role: {
       type:     String,
       required: true,
-      enum:     ['marketer'],
-      default:  'marketer'
+      enum:     ['Marketer' || 'marketer'],
+      default:  'Marketer'
     },
     password: {
       type:     String,
@@ -43,12 +43,6 @@ const marketerSchema = new Schema(
       enum:    [0, 1, 2],
       default: 0
     },
-    // mirror of approval: 1 if approved, else 0
-    isVerified: {
-      type:    Number,
-      enum:    [0, 1],
-      default: 0
-    }
   },
   { timestamps: true }
 );

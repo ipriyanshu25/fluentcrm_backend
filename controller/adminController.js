@@ -59,7 +59,7 @@ exports.updateMarketerVerification = async (req, res) => {
     if (action === 'approve') {
       const marketer = await Marketer.findOneAndUpdate(
         { marketerId },
-        { isVerified: 1 },
+        { status: 1 },
         { new: true }
       );
       if (!marketer) {
@@ -71,7 +71,7 @@ exports.updateMarketerVerification = async (req, res) => {
       return res.json({
         status:  'success',
         message: 'Marketer approved',
-        data:    { marketerId, isVerified: 1 }
+        data:    { marketerId, status: 1 }
       });
     }
 
