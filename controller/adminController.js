@@ -125,6 +125,9 @@ exports.listVerifiedMarketers = async (req, res) => {
         email: m.email,
         phoneNumber: m.phoneNumber,
         role: m.role,
+        assignedMail: m.smtpCredentialId ? {
+          user: m.user
+        } : null,
         verifiedAt: m.updatedAt
       })),
       meta: { total, page, limit, totalPages }
