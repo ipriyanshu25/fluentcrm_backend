@@ -149,3 +149,34 @@ exports.getMarketerById = async (req, res) => {
     });
   }
 };
+
+exports.deleteMarketer = async (req, res) => {
+  try {
+    const { marketerId } = req.body;              // ← read from body now
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: 'marketerId is required in the body'
+      });
+    }
+
+    const removed = await Marketer.findOneAndDelete({ marketerId });
+    if (!removed) {
+      return res.status(404).json({
+        status:  'error',
+        message: `No marketer found with id ${marketerId}`
+      });
+    }
+
+    return res.status(200).json({
+      status:  'success',
+      message: `Marketer ${marketerId} deleted`
+    });
+  } catch (err) {
+    console.error('Error deleting marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
