@@ -31,8 +31,8 @@ app.use('/admin',    adminRoutes)
 app.use('/marketer', marketerRoutes)
 app.use('/activity', activityListRoutes)
 app.use('/mail',mailRoutes)
-app.use('/template', templateRoutes)
 app.use('/smtp',smtpRoues)
+app.use('/template', templateRoutes)
 
 
 // ─── DB + SERVER START ───────────────────────────────────────────────────────

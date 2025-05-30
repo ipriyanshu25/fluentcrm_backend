@@ -10,6 +10,12 @@ const templateSchema = new mongoose.Schema(
       index: true,
       default: uuidv4
     },
+    subject: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
     name: {
       type: String,
       required: true,
