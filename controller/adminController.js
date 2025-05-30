@@ -1,6 +1,7 @@
 const Admin = require('../models/admin');
 const jwt = require('jsonwebtoken');
 const Marketer = require('../models/marketer');
+const SmtpCredential = require('../models/smtpCredentials');
 
 // Admin login unchanged
 exports.login = async (req, res) => {
@@ -173,4 +174,44 @@ exports.listMarketersByApproval = async (req, res) => {
       message: 'Server error'
     });
   }
+};
+
+
+exports.assignSmtpToMarketer = async (req, res) => {
+  const { marketerId, credentialId } = req.body;
+  if (!marketerId || !credentialId) {
+    return badRequest(res, 'marketerId and credentialId are required');
+  }
+
+  // 1) Find the marketer
+  const marketer = await Marketer.findOne({ marketerId });
+  if (!marketer) {
+    return notFound(res, 'Marketer not found');
+  }
+
+  // 2) Find the SMTP credential
+  const cred = await SmtpCredential.findOne({ credentialID: credentialId });
+  if (!cred) {
+    return notFound(res, 'SMTP credential not found');
+  }
+
+  // 3) Assign credentialId + host info into marketer
+  marketer.smtpCredentialId = credentialId;
+  marketer.smtpHost         = cred.host;
+  marketer.smtpPort         = cred.port;
+  marketer.smtpSecure       = cred.secure;
+  await marketer.save();
+
+  // 4) Respond
+  return res.json({
+    status:  'success',
+    message: 'SMTP credential assigned to marketer',
+    data: {
+      marketerId,
+      credentialId,
+      host: cred.host,
+      port: cred.port,
+      secure: cred.secure
+    }
+  });
 };

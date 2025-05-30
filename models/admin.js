@@ -1,22 +1,24 @@
 // models/Admin.js
-const mongoose       = require('mongoose');
-const bcrypt         = require('bcryptjs');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid'); // use uuid for unique string IDs
 // ✨  no need for nanoid if you only want ObjectId-style strings
 
 const adminSchema = new mongoose.Schema(
   {
     // use a second ObjectId purely as a string
-    adminId : {
-      type   : String,
-      unique : true,
-      default: () => new mongoose.Types.ObjectId().toString()
+    adminId: {
+      type: String,
+      required: true,
+      unique: true,
+      default: uuidv4
     },
 
-    email   : {
-      type     : String,
-      required : true,
-      unique   : true,
-      trim     : true,
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
       lowercase: true
     },
 

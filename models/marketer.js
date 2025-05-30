@@ -1,48 +1,69 @@
 // models/marketer.js
 const mongoose = require('mongoose');
-const bcrypt   = require('bcryptjs');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 const { Schema } = mongoose;
 
 const marketerSchema = new Schema(
   {
     marketerId: {
-      type:    String,
-      unique:  true,
-      default: () => new mongoose.Types.ObjectId().toString()
+      type: String,
+      required: true,
+      unique: true,
+      default: uuidv4
     },
     name: {
-      type:     String,
+      type: String,
       required: true,
-      trim:     true
+      trim: true
     },
     email: {
-      type:      String,
-      required:  true,
-      unique:    true,
+      type: String,
+      required: true,
+      unique: true,
       lowercase: true,
-      trim:      true
+      trim: true
     },
     phoneNumber: {
-      type:     String,
+      type: String,
       required: true,
-      trim:     true
+      trim: true
     },
     role: {
-      type:     String,
+      type: String,
       required: true,
-      enum:     ['Marketer' || 'marketer'],
-      default:  'Marketer'
+      enum: ['Marketer', 'marketer'],
+      default: 'Marketer'
     },
     password: {
-      type:     String,
+      type: String,
       required: true
     },
     // overall signup status: 0 = pending, 1 = approved, 2 = rejected
     status: {
-      type:    Number,
-      enum:    [0, 1, 2],
+      type: Number,
+      enum: [0, 1, 2],
       default: 0
     },
+    // Assigned SMTP credential info
+    smtpCredentialId: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    user: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    port: {
+      type: Number,
+      default: null
+    },
+    secure: {
+      type: Boolean,
+      default: null
+    }
   },
   { timestamps: true }
 );

@@ -1,48 +1,50 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 const { Schema } = mongoose;
 
 const campaignSchema = new Schema({
   campaignId: {
-    type:    String,
-    unique:  true,
-    default: () => new mongoose.Types.ObjectId().toString()
+    type: String,
+    required: true,
+    unique: true,
+    default: uuidv4
   },
   activityId: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   marketerId: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   marketerName: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   activityName: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   contacts: {
-    type:    [{ name: String, email: String }],
+    type: [{ name: String, email: String }],
     default: []
   },
   subject: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   description: {
-    type:     String,
+    type: String,
     required: true,
-    trim:     true
+    trim: true
   },
   sentAt: {
-    type:    Date,
+    type: Date,
     default: () => new Date()
   }
 }, { timestamps: true });

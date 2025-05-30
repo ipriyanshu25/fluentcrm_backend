@@ -1,12 +1,14 @@
 // models/activityList.js
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 const { Schema } = mongoose;
 
 const contactSubSchema = new Schema({
   contactId: {
     type: String,
     required: true,
-    default: () => new mongoose.Types.ObjectId().toString()
+    unique: true,
+    default: uuidv4
   },
   name: {
     type: String,

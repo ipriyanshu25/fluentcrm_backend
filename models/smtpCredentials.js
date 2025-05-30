@@ -1,6 +1,7 @@
 // models/SmtpCredential.js
 const mongoose = require('mongoose');
 const crypto   = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 
 // Use a symmetric key to encrypt SMTP passwords
 const ENC_KEY = process.env.SMTP_ENC_KEY; // 32-byte base64
@@ -32,6 +33,12 @@ function decrypt(encrypted) {
 }
 
 const smtpCredSchema = new mongoose.Schema({
+  credentialID: {
+    type: String,
+    required: true,
+    unique: true,
+    default: uuidv4
+  },
   user:      { type: String, required: true, unique: true },    
   host:      { type: String, required: true },                  
   port:      { type: Number, required: true },                  

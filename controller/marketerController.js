@@ -116,3 +116,36 @@ exports.login = async (req, res) => {
 };
 
 
+exports.getMarketerById = async (req, res) => {
+  try {
+    const { marketerId } = req.params;
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: 'marketerId is required'
+      });
+    }
+
+    // find by your unique marketerId field
+    const marketer = await Marketer.findOne({ marketerId })
+      .select('-password -__v');  // hide sensitive/internal fields
+
+    if (!marketer) {
+      return res.status(404).json({
+        status:  'error',
+        message: 'Marketer not found'
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data:   marketer
+    });
+  } catch (err) {
+    console.error('Error fetching marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};

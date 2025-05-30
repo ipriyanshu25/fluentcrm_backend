@@ -4,7 +4,7 @@ const {
   listMarketerRequests,
   updateMarketerVerification,
   listVerifiedMarketers,
-  listMarketersByApproval
+  assignSmtpToMarketer
 } = require('../controller/adminController');
 const protect = require('../middleware/auth');   // ← your middleware
 
@@ -29,5 +29,6 @@ router.post(
 
 router.post('/marketers/status', listVerifiedMarketers);
 router.get('/marketers/getlist', listVerifiedMarketers);
+router.post('/assignSmtp',assignSmtpToMarketer);
 
 module.exports = router;

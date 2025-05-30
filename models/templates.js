@@ -1,11 +1,14 @@
 const mongoose = require('mongoose')
+const { v4: uuidv4 } = require('uuid') // use uuid for unique string IDs
 
 const templateSchema = new mongoose.Schema(
   {
     templateId: {
       type: String,
+      required: true,
       unique: true,
       index: true,
+      default: uuidv4
     },
     name: {
       type: String,
