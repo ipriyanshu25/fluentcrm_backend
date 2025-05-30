@@ -197,9 +197,9 @@ exports.assignSmtpToMarketer = async (req, res) => {
 
   // 3) Assign credentialId + host info into marketer
   marketer.smtpCredentialId = credentialId;
-  marketer.smtpHost         = cred.host;
-  marketer.smtpPort         = cred.port;
-  marketer.smtpSecure       = cred.secure;
+  marketer.user         = cred.user;
+  marketer.port         = cred.port;
+  marketer.secure       = cred.secure;
   await marketer.save();
 
   // 4) Respond
@@ -209,7 +209,7 @@ exports.assignSmtpToMarketer = async (req, res) => {
     data: {
       marketerId,
       credentialId,
-      host: cred.host,
+      user: cred.user,
       port: cred.port,
       secure: cred.secure
     }

@@ -124,3 +124,9 @@ exports.getCredentialsList = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
+
+
+exports.getAllCredentials = async (req, res) => {
+  const items = await SmtpCredential.find({}, '-passEnc').lean();
+  return res.json({ status: 'success', data: items });
+};
