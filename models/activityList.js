@@ -30,8 +30,9 @@ const activityListSchema = new Schema({
   },
   activityId: {
     type: String,
+    required: true,
     unique: true,
-    default: () => new mongoose.Types.ObjectId().toString()
+    default: uuidv4
   },
   // ← NEW: who created this list
   marketerId: {
