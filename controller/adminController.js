@@ -128,7 +128,8 @@ exports.listVerifiedMarketers = async (req, res) => {
         assignedMail: m.smtpCredentialId ? {
           user: m.user
         } : null,
-        verifiedAt: m.updatedAt
+        verifiedAt: m.updatedAt,
+        createdAt: m.createdAt
       })),
       meta: { total, page, limit, totalPages }
     });
