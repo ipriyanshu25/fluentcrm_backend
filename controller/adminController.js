@@ -1,6 +1,8 @@
 const Admin = require('../models/admin');
 const jwt = require('jsonwebtoken');
 const Marketer = require('../models/marketer');
+const ActivityList = require('../models/activityList');
+const Campaign = require('../models/campaign');
 const SmtpCredential = require('../models/smtpCredentials');
 
 // Admin login unchanged
@@ -218,4 +220,31 @@ exports.assignSmtpToMarketer = async (req, res) => {
       secure: cred.secure
     }
   });
+};
+
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    // Run all three counts in parallel
+    const [totalMarketers, totalActivity, totalCampaigns] = await Promise.all([
+      Marketer.countDocuments(),
+      ActivityList.countDocuments(),
+      Campaign.countDocuments()
+    ]);
+
+    return res.json({
+      status: 'success',
+      data: {
+        totalMarketers,
+        totalActivity,
+        totalCampaigns
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error'
+    });
+  }
 };

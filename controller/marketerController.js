@@ -1,4 +1,6 @@
 const Marketer = require('../models/marketer');
+const ActivityList = require('../models/activityList');
+const Campaign = require('../models/campaign');
 const bcrypt   = require('bcryptjs');
 const jwt       = require('jsonwebtoken');
 
@@ -257,6 +259,48 @@ exports.updateMarketer = async (req, res) => {
     });
   } catch (err) {
     console.error('Error updating marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
+
+exports.getMarketerDashboard = async (req, res) => {
+  try {
+    const { marketerId } = req.body;
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`marketerId` is required in the request body.'
+      });
+    }
+
+    // Ensure the marketer exists
+    const marketer = await Marketer.findOne({ marketerId });
+    if (!marketer) {
+      return res.status(404).json({
+        status:  'error',
+        message: `No marketer found with id ${marketerId}.`
+      });
+    }
+
+    // Count activities created by this marketer
+    const totalActivity = await ActivityList.countDocuments({ marketerId });
+
+    // Count campaigns sent by this marketer
+    const totalCampaigns = await Campaign.countDocuments({ marketerId });
+
+    return res.json({
+      status: 'success',
+      data: {
+        name:marketer.name,
+        totalActivity,
+        totalCampaigns
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching marketer dashboard:', err);
     return res.status(500).json({
       status:  'error',
       message: 'Server error'
