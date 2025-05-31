@@ -7,6 +7,6 @@ router.post('/login', login);
 router.get('/:marketerId', getMarketerById);
 router.post('/delete', deleteMarketer);
 router.post('/update', updateMarketer);
-router.get('/dashboard', getMarketerDashboard);
+router.post('/dashboard', getMarketerDashboard);
 
 module.exports = router;

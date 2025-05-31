@@ -268,7 +268,7 @@ exports.updateMarketer = async (req, res) => {
 
 exports.getMarketerDashboard = async (req, res) => {
   try {
-    const { marketerId } = req.params; // read from URL params
+    const { marketerId } = req.body;
     if (!marketerId) {
       return res.status(400).json({
         status:  'error',
