@@ -1,4 +1,5 @@
 const Marketer = require('../models/marketer');
+const bcrypt   = require('bcryptjs');
 const jwt       = require('jsonwebtoken');
 
 // MARKETER SIGNUP ▶ creates a pending request
@@ -174,6 +175,88 @@ exports.deleteMarketer = async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
+
+
+exports.updateMarketer = async (req, res) => {
+  try {
+    const { marketerId, name, email, phoneNumber, password } = req.body;
+
+    // 1) Must supply marketerId
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: 'marketerId is required'
+      });
+    }
+
+    // 2) Fetch existing marketer
+    const marketer = await Marketer.findOne({ marketerId });
+    if (!marketer) {
+      return res.status(404).json({
+        status:  'error',
+        message: `No marketer found with id ${marketerId}`
+      });
+    }
+
+    // 3) If updating email, ensure unique
+    if (email && email.toLowerCase() !== marketer.email) {
+      const normalizedEmail = email.toLowerCase();
+      const conflict = await Marketer.findOne({
+        email: normalizedEmail,
+        _id:   { $ne: marketer._id }
+      });
+      if (conflict) {
+        return res.status(409).json({
+          status:  'error',
+          message: 'Email already in use by another marketer'
+        });
+      }
+      marketer.email = normalizedEmail;
+    }
+
+    // 4) If updating phoneNumber, ensure unique
+    if (phoneNumber && phoneNumber !== marketer.phoneNumber) {
+      const conflict = await Marketer.findOne({
+        phoneNumber,
+        _id:         { $ne: marketer._id }
+      });
+      if (conflict) {
+        return res.status(409).json({
+          status:  'error',
+          message: 'Phone number already in use by another marketer'
+        });
+      }
+      marketer.phoneNumber = phoneNumber;
+    }
+
+    // 5) Update name if provided
+    if (name) {
+      marketer.name = name.trim();
+    }
+
+    // 6) Update password if provided (hash it)
+    if (password) {
+      const salt = await bcrypt.genSalt(12);
+      marketer.password = await bcrypt.hash(password, salt);
+    }
+
+    // 7) Save and return updated marketer (excluding password + __v)
+    const updated = await marketer.save();
+    const { password: _pw, __v, ...payload } = updated.toObject();
+
+    return res.status(200).json({
+      status:  'success',
+      message: 'Marketer updated successfully',
+      data:    payload
+    });
+  } catch (err) {
+    console.error('Error updating marketer:', err);
     return res.status(500).json({
       status:  'error',
       message: 'Server error'
