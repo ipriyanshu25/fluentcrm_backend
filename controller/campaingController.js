@@ -53,3 +53,40 @@ exports.getCampaignById = async (req, res) => {
     });
   }
 };
+
+exports.getCampaignsByMarketer = async (req, res) => {
+  try {
+    const { marketerId } = req.body;
+    if (!marketerId) {
+      return res.status(400).json({
+        status:  'error',
+        message: '`marketerId` is required in the request body.'
+      });
+    }
+
+    // Find all campaigns for this marketer, most recent first
+    const campaigns = await Campaign
+      .find({ marketerId })
+      .sort({ sentAt: -1 });
+
+    if (!campaigns.length) {
+      return res.json({
+        status:  'success',
+        message: `No campaigns found for marketer ${marketerId}.`,
+        data:    []
+      });
+    }
+
+    return res.json({
+      status:  'success',
+      message: `Fetched ${campaigns.length} campaign(s) for marketer ${marketerId}.`,
+      data:    campaigns
+    });
+  } catch (err) {
+    console.error('Error fetching campaigns by marketer:', err);
+    return res.status(500).json({
+      status:  'error',
+      message: 'Server error'
+    });
+  }
+};
